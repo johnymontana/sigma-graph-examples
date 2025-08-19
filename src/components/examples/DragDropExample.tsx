@@ -1,24 +1,26 @@
-import React, { useEffect } from 'react';
-import { SigmaContainer, useLoadGraph, useSetSettings, useRegisterEvents } from '@react-sigma/core';
+import React, { useEffect, useState } from 'react';
+import { SigmaContainer, useLoadGraph, useSetSettings, useRegisterEvents, useSigma } from '@react-sigma/core';
 import Graph from 'graphology';
-import { random } from 'graphology-layout';
+
 
 const DragDropGraph: React.FC = () => {
   const loadGraph = useLoadGraph();
   const setSettings = useSetSettings();
   const registerEvents = useRegisterEvents();
+  const sigma = useSigma();
+  const [draggedNode, setDraggedNode] = useState<string | null>(null);
 
   useEffect(() => {
     const graph = new Graph();
     
-    // Create nodes
+    // Create nodes with more interesting positions
     const nodes = [
-      { id: 'A', label: 'Draggable A', color: '#ff6b6b' },
-      { id: 'B', label: 'Draggable B', color: '#4ecdc4' },
-      { id: 'C', label: 'Draggable C', color: '#45b7d1' },
-      { id: 'D', label: 'Draggable D', color: '#f9ca24' },
-      { id: 'E', label: 'Draggable E', color: '#a8e6cf' },
-      { id: 'F', label: 'Draggable F', color: '#ff8b94' }
+      { id: 'A', label: 'Draggable A', color: '#ff6b6b', x: -2, y: -1 },
+      { id: 'B', label: 'Draggable B', color: '#4ecdc4', x: 2, y: -1 },
+      { id: 'C', label: 'Draggable C', color: '#45b7d1', x: 2, y: 1 },
+      { id: 'D', label: 'Draggable D', color: '#f9ca24', x: -2, y: 1 },
+      { id: 'E', label: 'Draggable E', color: '#a8e6cf', x: 0, y: 0 },
+      { id: 'F', label: 'Draggable F', color: '#ff8b94', x: 0, y: -2 }
     ];
 
     nodes.forEach(node => {
@@ -26,6 +28,9 @@ const DragDropGraph: React.FC = () => {
         label: node.label,
         size: 20,
         color: node.color,
+        x: node.x,
+        y: node.y,
+        highlighted: false
       });
     });
 
@@ -33,14 +38,12 @@ const DragDropGraph: React.FC = () => {
     graph.addEdge('A', 'B', { color: '#ccc', size: 2 });
     graph.addEdge('B', 'C', { color: '#ccc', size: 2 });
     graph.addEdge('C', 'D', { color: '#ccc', size: 2 });
-    graph.addEdge('D', 'E', { color: '#ccc', size: 2 });
-    graph.addEdge('E', 'F', { color: '#ccc', size: 2 });
-    graph.addEdge('F', 'A', { color: '#ccc', size: 2 });
-    graph.addEdge('A', 'D', { color: '#999', size: 1 });
+    graph.addEdge('D', 'A', { color: '#ccc', size: 2 });
+    graph.addEdge('A', 'E', { color: '#999', size: 1 });
     graph.addEdge('B', 'E', { color: '#999', size: 1 });
-
-    // Apply random layout
-    random.assign(graph);
+    graph.addEdge('C', 'E', { color: '#999', size: 1 });
+    graph.addEdge('D', 'E', { color: '#999', size: 1 });
+    graph.addEdge('E', 'F', { color: '#666', size: 1.5 });
     
     loadGraph(graph);
 
@@ -49,27 +52,72 @@ const DragDropGraph: React.FC = () => {
       renderLabels: true,
       defaultNodeColor: '#ec5148',
       defaultEdgeColor: '#ccc',
+      nodeReducer: (_, attrs) => ({
+        ...attrs,
+        size: attrs.highlighted ? attrs.size * 1.2 : attrs.size,
+        borderColor: attrs.highlighted ? '#000' : undefined,
+        borderSize: attrs.highlighted ? 2 : 0
+      })
     });
   }, [loadGraph, setSettings]);
 
   useEffect(() => {
+    // Register the drag and drop events
     registerEvents({
+      // On mouse down on a node, we enable the dragging mode
+      downNode: (e) => {
+        setDraggedNode(e.node);
+        sigma.getGraph().setNodeAttribute(e.node, 'highlighted', true);
+        document.body.style.cursor = 'grabbing';
+      },
+      
+      // On mouse move, if the drag mode is enabled, we change the position of the draggedNode
+      mousemovebody: (e) => {
+        if (!draggedNode) return;
+        
+        // Get new position of node in graph coordinates
+        const pos = sigma.viewportToGraph(e);
+        sigma.getGraph().setNodeAttribute(draggedNode, 'x', pos.x);
+        sigma.getGraph().setNodeAttribute(draggedNode, 'y', pos.y);
+
+        // Prevent sigma to move camera
+        e.preventSigmaDefault();
+        e.original.preventDefault();
+        e.original.stopPropagation();
+      },
+      
+      // On mouse up, we reset the dragging mode
+      mouseup: () => {
+        if (draggedNode) {
+          setDraggedNode(null);
+          sigma.getGraph().setNodeAttribute(draggedNode, 'highlighted', false);
+          document.body.style.cursor = 'default';
+        }
+      },
+      
+      // Disable the autoscale at the first down interaction
+      mousedown: () => {
+        if (!sigma.getCustomBBox()) sigma.setCustomBBox(sigma.getBBox());
+      },
+      
+      // Change cursor on hover
       enterNode: () => {
-        document.body.style.cursor = 'grab';
+        if (!draggedNode) {
+          document.body.style.cursor = 'grab';
+        }
       },
+      
       leaveNode: () => {
-        document.body.style.cursor = 'default';
-      },
-      clickNode: (event) => {
-        // Simple demonstration - just log the clicked node
-        console.log('Clicked node for dragging:', event.node);
+        if (!draggedNode) {
+          document.body.style.cursor = 'default';
+        }
       }
     });
 
     return () => {
       document.body.style.cursor = 'default';
     };
-  }, [registerEvents]);
+  }, [registerEvents, sigma, draggedNode]);
 
   return (
     <div style={{ 
@@ -77,15 +125,35 @@ const DragDropGraph: React.FC = () => {
       top: 10, 
       left: 10, 
       background: 'rgba(255,255,255,0.9)', 
-      padding: '10px', 
-      borderRadius: '5px', 
-      boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-      fontSize: '14px'
+      padding: '15px', 
+      borderRadius: '8px', 
+      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+      fontSize: '14px',
+      maxWidth: '300px',
+      zIndex: 1000
     }}>
-      <strong>Drag & Drop Instructions:</strong><br />
-      • Click and drag any node to move it<br />
-      • Cursor changes to indicate drag state<br />
-      • Node connections are maintained
+      <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>
+        Drag & Drop Instructions
+      </h4>
+      <div style={{ color: '#666', lineHeight: '1.4' }}>
+        <p><strong>• Click and drag</strong> any node to move it independently</p>
+        <p><strong>• Cursor changes:</strong> grab → grabbing → default</p>
+        <p><strong>• Node highlighting:</strong> Selected nodes get larger with borders</p>
+        <p><strong>• Camera lock:</strong> Dragging nodes won't move the camera</p>
+        <p><strong>• Connections:</strong> Edges follow nodes as they move</p>
+      </div>
+      {draggedNode && (
+        <div style={{ 
+          marginTop: '10px', 
+          padding: '8px', 
+          backgroundColor: '#e3f2fd', 
+          borderRadius: '4px',
+          fontSize: '12px',
+          color: '#1976d2'
+        }}>
+          <strong>Dragging:</strong> {draggedNode}
+        </div>
+      )}
     </div>
   );
 };

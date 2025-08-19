@@ -5,6 +5,9 @@ import CodePanel from './CodePanel';
 import EventsExample from './examples/EventsExample';
 import DragDropExample from './examples/DragDropExample';
 import LayoutsExample from './examples/LayoutsExample';
+import ComprehensiveLayoutsExample from './examples/ComprehensiveLayoutsExample';
+import CommunityDetectionExample from './examples/CommunityDetectionExample';
+import DragDropWithLayoutExample from './examples/DragDropWithLayoutExample';
 import ControlsExample from './examples/ControlsExample';
 import ExternalStateExample from './examples/ExternalStateExample';
 import GraphSearchExample from './examples/GraphSearchExample';
@@ -215,29 +218,30 @@ export default EventsExample;`
     description: 'Enable interactive node dragging functionality with visual feedback.',
     component: DragDropExample,
     difficulty: 'Intermediate',
-    features: ['Node dragging', 'Cursor changes', 'Mouse event handling', 'Position updates'],
+    features: ['Independent node dragging', 'Camera lock during drag', 'Visual feedback', 'Event handling', 'Node highlighting'],
     fileName: 'DragDropExample.tsx',
-    code: `import React, { useEffect } from 'react';
-import { SigmaContainer, useLoadGraph, useSetSettings, useRegisterEvents } from '@react-sigma/core';
+    code: `import React, { useEffect, useState } from 'react';
+import { SigmaContainer, useLoadGraph, useSetSettings, useRegisterEvents, useSigma } from '@react-sigma/core';
 import Graph from 'graphology';
-import { random } from 'graphology-layout';
 
 const DragDropGraph: React.FC = () => {
   const loadGraph = useLoadGraph();
   const setSettings = useSetSettings();
   const registerEvents = useRegisterEvents();
+  const sigma = useSigma();
+  const [draggedNode, setDraggedNode] = useState<string | null>(null);
 
   useEffect(() => {
     const graph = new Graph();
     
-    // Create nodes
+    // Create nodes with fixed positions
     const nodes = [
-      { id: 'A', label: 'Draggable A', color: '#ff6b6b' },
-      { id: 'B', label: 'Draggable B', color: '#4ecdc4' },
-      { id: 'C', label: 'Draggable C', color: '#45b7d1' },
-      { id: 'D', label: 'Draggable D', color: '#f9ca24' },
-      { id: 'E', label: 'Draggable E', color: '#a8e6cf' },
-      { id: 'F', label: 'Draggable F', color: '#ff8b94' }
+      { id: 'A', label: 'Draggable A', color: '#ff6b6b', x: -2, y: -1 },
+      { id: 'B', label: 'Draggable B', color: '#4ecdc4', x: 2, y: -1 },
+      { id: 'C', label: 'Draggable C', color: '#45b7d1', x: 2, y: 1 },
+      { id: 'D', label: 'Draggable D', color: '#f9ca24', x: -2, y: 1 },
+      { id: 'E', label: 'Draggable E', color: '#a8e6cf', x: 0, y: 0 },
+      { id: 'F', label: 'Draggable F', color: '#ff8b94', x: 0, y: -2 }
     ];
 
     nodes.forEach(node => {
@@ -245,6 +249,9 @@ const DragDropGraph: React.FC = () => {
         label: node.label,
         size: 20,
         color: node.color,
+        x: node.x,
+        y: node.y,
+        highlighted: false
       });
     });
 
@@ -252,42 +259,86 @@ const DragDropGraph: React.FC = () => {
     graph.addEdge('A', 'B', { color: '#ccc', size: 2 });
     graph.addEdge('B', 'C', { color: '#ccc', size: 2 });
     graph.addEdge('C', 'D', { color: '#ccc', size: 2 });
-    graph.addEdge('D', 'E', { color: '#ccc', size: 2 });
-    graph.addEdge('E', 'F', { color: '#ccc', size: 2 });
-    graph.addEdge('F', 'A', { color: '#ccc', size: 2 });
-    graph.addEdge('A', 'D', { color: '#999', size: 1 });
+    graph.addEdge('D', 'A', { color: '#ccc', size: 2 });
+    graph.addEdge('A', 'E', { color: '#999', size: 1 });
     graph.addEdge('B', 'E', { color: '#999', size: 1 });
-
-    // Apply random layout
-    random.assign(graph);
+    graph.addEdge('C', 'E', { color: '#999', size: 1 });
+    graph.addEdge('D', 'E', { color: '#999', size: 1 });
+    graph.addEdge('E', 'F', { color: '#666', size: 1.5 });
     
     loadGraph(graph);
+
     setSettings({
       allowInvalidContainer: true,
       renderLabels: true,
       defaultNodeColor: '#ec5148',
       defaultEdgeColor: '#ccc',
+      nodeReducer: (_, attrs) => ({
+        ...attrs,
+        size: attrs.highlighted ? attrs.size * 1.2 : attrs.size,
+        borderColor: attrs.highlighted ? '#000' : undefined,
+        borderSize: attrs.highlighted ? 2 : 0
+      })
     });
   }, [loadGraph, setSettings]);
 
   useEffect(() => {
+    // Register the drag and drop events
     registerEvents({
+      // On mouse down on a node, we enable the dragging mode
+      downNode: (e) => {
+        setDraggedNode(e.node);
+        sigma.getGraph().setNodeAttribute(e.node, 'highlighted', true);
+        document.body.style.cursor = 'grabbing';
+      },
+      
+      // On mouse move, if the drag mode is enabled, we change the position of the draggedNode
+      mousemovebody: (e) => {
+        if (!draggedNode) return;
+        
+        // Get new position of node in graph coordinates
+        const pos = sigma.viewportToGraph(e);
+        sigma.getGraph().setNodeAttribute(draggedNode, 'x', pos.x);
+        sigma.getGraph().setNodeAttribute(draggedNode, 'y', pos.y);
+
+        // Prevent sigma to move camera
+        e.preventSigmaDefault();
+        e.original.preventDefault();
+        e.original.stopPropagation();
+      },
+      
+      // On mouse up, we reset the dragging mode
+      mouseup: () => {
+        if (draggedNode) {
+          setDraggedNode(null);
+          sigma.getGraph().setNodeAttribute(draggedNode, 'highlighted', false);
+          document.body.style.cursor = 'default';
+        }
+      },
+      
+      // Disable the autoscale at the first down interaction
+      mousedown: () => {
+        if (!sigma.getCustomBBox()) sigma.setCustomBBox(sigma.getBBox());
+      },
+      
+      // Change cursor on hover
       enterNode: () => {
-        document.body.style.cursor = 'grab';
+        if (!draggedNode) {
+          document.body.style.cursor = 'grab';
+        }
       },
+      
       leaveNode: () => {
-        document.body.style.cursor = 'default';
-      },
-      clickNode: (event) => {
-        // Simple demonstration - just log the clicked node
-        console.log('Clicked node for dragging:', event.node);
+        if (!draggedNode) {
+          document.body.style.cursor = 'default';
+        }
       }
     });
 
     return () => {
       document.body.style.cursor = 'default';
     };
-  }, [registerEvents]);
+  }, [registerEvents, sigma, draggedNode]);
 
   return (
     <div style={{ 
@@ -295,15 +346,35 @@ const DragDropGraph: React.FC = () => {
       top: 10, 
       left: 10, 
       background: 'rgba(255,255,255,0.9)', 
-      padding: '10px', 
-      borderRadius: '5px', 
-      boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-      fontSize: '14px'
+      padding: '15px', 
+      borderRadius: '8px', 
+      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+      fontSize: '14px',
+      maxWidth: '300px',
+      zIndex: 1000
     }}>
-      <strong>Drag & Drop Instructions:</strong><br />
-      • Click and drag any node to move it<br />
-      • Cursor changes to indicate drag state<br />
-      • Node connections are maintained
+      <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>
+        Drag & Drop Instructions
+      </h4>
+      <div style={{ color: '#666', lineHeight: '1.4' }}>
+        <p><strong>• Click and drag</strong> any node to move it independently</p>
+        <p><strong>• Cursor changes:</strong> grab → grabbing → default</p>
+        <p><strong>• Node highlighting:</strong> Selected nodes get larger with borders</p>
+        <p><strong>• Camera lock:</strong> Dragging nodes won't move the camera</p>
+        <p><strong>• Connections:</strong> Edges follow nodes as they move</p>
+      </div>
+      {draggedNode && (
+        <div style={{ 
+          marginTop: '10px', 
+          padding: '8px', 
+          backgroundColor: '#e3f2fd', 
+          borderRadius: '4px',
+          fontSize: '12px',
+          color: '#1976d2'
+        }}>
+          <strong>Dragging:</strong> {draggedNode}
+        </div>
+      )}
     </div>
   );
 };
@@ -319,6 +390,173 @@ const DragDropExample: React.FC = () => {
 };
 
 export default DragDropExample;`
+  },
+  {
+    id: 'drag-drop-layout',
+    title: 'Drag & Drop + Continuous Layouts',
+    description: 'Combine manual node positioning with continuous layout algorithms running in background.',
+    component: DragDropWithLayoutExample,
+    difficulty: 'Advanced',
+    features: ['Continuous layouts', 'Layout workers', 'Drag lock modes', 'Real-time interaction', 'Node pinning'],
+    fileName: 'DragDropWithLayoutExample.tsx',
+    code: `import React, { useEffect, useState } from 'react';
+import { SigmaContainer, useLoadGraph, useSetSettings, useRegisterEvents, useSigma } from '@react-sigma/core';
+import { useWorkerLayoutForce } from '@react-sigma/layout-force';
+import { useWorkerLayoutForceAtlas2 } from '@react-sigma/layout-forceatlas2';
+import { useWorkerLayoutNoverlap } from '@react-sigma/layout-noverlap';
+import Graph from 'graphology';
+
+const DragLayoutGraph: React.FC<{
+  layout: string;
+  isLayoutRunning: boolean;
+  dragMode: boolean;
+  draggedNode: string | null;
+  setDraggedNode: (node: string | null) => void;
+  dragLockMode: 'none' | 'fixed' | 'pinned';
+}> = ({
+  layout,
+  isLayoutRunning,
+  dragMode,
+  draggedNode,
+  setDraggedNode,
+  dragLockMode
+}) => {
+  const loadGraph = useLoadGraph();
+  const setSettings = useSetSettings();
+  const registerEvents = useRegisterEvents();
+  const sigma = useSigma();
+
+  // Layout workers
+  const forceLayout = useWorkerLayoutForce();
+  const forceAtlas2Layout = useWorkerLayoutForceAtlas2();
+  const noverlapLayout = useWorkerLayoutNoverlap();
+
+  useEffect(() => {
+    const graph = new Graph();
+    
+    // Create clustered network
+    const nodes = [
+      { id: 'central', label: 'Central Hub', color: '#e74c3c', size: 25, x: 0, y: 0 },
+      { id: 'cluster1-1', label: 'C1-1', color: '#3498db', size: 15, x: -2, y: -1 },
+      { id: 'cluster1-2', label: 'C1-2', color: '#3498db', size: 15, x: -2.5, y: -0.5 },
+      // ... more nodes
+    ];
+
+    nodes.forEach(node => {
+      graph.addNode(node.id, {
+        label: node.label,
+        size: node.size,
+        color: node.color,
+        x: node.x + (Math.random() - 0.5) * 0.5,
+        y: node.y + (Math.random() - 0.5) * 0.5,
+        highlighted: false,
+        fixed: false,
+        pinned: false
+      });
+    });
+
+    loadGraph(graph);
+    setSettings({
+      allowInvalidContainer: true,
+      renderLabels: true,
+      nodeReducer: (_, attrs) => ({
+        ...attrs,
+        size: attrs.highlighted ? attrs.size * 1.3 : attrs.size,
+        borderColor: attrs.highlighted ? '#000' : (attrs.pinned ? '#ff0000' : (attrs.fixed ? '#ff9900' : undefined)),
+        borderSize: attrs.highlighted ? 3 : (attrs.pinned || attrs.fixed ? 2 : 0)
+      })
+    });
+  }, [loadGraph, setSettings]);
+
+  // Handle layout workers
+  useEffect(() => {
+    if (!isLayoutRunning) {
+      forceLayout.stop();
+      forceAtlas2Layout.stop();
+      noverlapLayout.stop();
+      return;
+    }
+
+    switch (layout) {
+      case 'force':
+        forceLayout.start();
+        break;
+      case 'forceatlas2':
+        forceAtlas2Layout.start();
+        break;
+      case 'noverlap':
+        noverlapLayout.start();
+        break;
+    }
+  }, [layout, isLayoutRunning, forceLayout, forceAtlas2Layout, noverlapLayout]);
+
+  // Handle drag events with layout interaction
+  useEffect(() => {
+    if (!dragMode) return;
+
+    registerEvents({
+      downNode: (e) => {
+        setDraggedNode(e.node);
+        const graph = sigma.getGraph();
+        graph.setNodeAttribute(e.node, 'highlighted', true);
+        
+        // Apply drag lock mode
+        if (dragLockMode === 'fixed') {
+          graph.setNodeAttribute(e.node, 'fixed', true);
+        } else if (dragLockMode === 'pinned') {
+          graph.setNodeAttribute(e.node, 'pinned', true);
+        }
+      },
+      
+      mousemovebody: (e) => {
+        if (!draggedNode) return;
+        const pos = sigma.viewportToGraph(e);
+        const graph = sigma.getGraph();
+        graph.setNodeAttribute(draggedNode, 'x', pos.x);
+        graph.setNodeAttribute(draggedNode, 'y', pos.y);
+        e.preventSigmaDefault();
+      },
+      
+      mouseup: () => {
+        if (draggedNode) {
+          const graph = sigma.getGraph();
+          graph.setNodeAttribute(draggedNode, 'highlighted', false);
+          
+          if (dragLockMode === 'fixed') {
+            graph.setNodeAttribute(draggedNode, 'fixed', false);
+          }
+          setDraggedNode(null);
+        }
+      }
+    });
+  }, [registerEvents, sigma, draggedNode, dragMode, dragLockMode, setDraggedNode]);
+
+  return null;
+};
+
+const DragDropWithLayoutExample: React.FC = () => {
+  const [layout, setLayout] = useState('force');
+  const [isLayoutRunning, setIsLayoutRunning] = useState(false);
+  const [dragMode, setDragMode] = useState(true);
+  const [draggedNode, setDraggedNode] = useState<string | null>(null);
+  const [dragLockMode, setDragLockMode] = useState<'none' | 'fixed' | 'pinned'>('fixed');
+
+  return (
+    <SigmaContainer>
+      <DragLayoutGraph
+        layout={layout}
+        isLayoutRunning={isLayoutRunning}
+        dragMode={dragMode}
+        draggedNode={draggedNode}
+        setDraggedNode={setDraggedNode}
+        dragLockMode={dragLockMode}
+      />
+      {/* Controls for layout and drag settings */}
+    </SigmaContainer>
+  );
+};
+
+export default DragDropWithLayoutExample;`
   },
   {
     id: 'layouts',
@@ -340,7 +578,7 @@ const LayoutControls: React.FC<{ onLayoutChange: (layout: string) => void }> = (
   const handleLayoutChange = (layout: string) => {
     setCurrentLayout(layout);
     onLayoutChange(layout);
-  };
+    };
 
   return (
     <div style={{ position: 'absolute', top: 10, right: 10, background: 'white', padding: '15px', borderRadius: '5px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 1000 }}>
@@ -370,8 +608,7 @@ const LayoutGraph: React.FC<{ layout: string }> = ({ layout }) => {
 
     // Add edges
     for (let i = 0; i < 20; i++) {
-      graph.addEdge(\`node-\${i}\`, \`node-\${(i + 1) % 20}\`, { color: '#ccc' });
-    }
+      graph.addEdge(\`node-\${i}\`, \`node-\${(i + 1) % 20}\`, { color: '#ccc' });\n    }
 
     // Apply selected layout
     switch (layout) {
@@ -413,6 +650,521 @@ const LayoutsExample: React.FC = () => {
     </div>
   );
 };`
+  },
+  {
+    id: 'comprehensive-layouts',
+    title: 'Comprehensive Layout Options',
+    description: 'Explore all available layout algorithms including regular layouts and worker layouts with interactive controls.',
+    component: ComprehensiveLayoutsExample,
+    difficulty: 'Intermediate',
+    features: ['All layout types', 'Regular vs Worker layouts', 'Interactive controls', 'Visual feedback', 'Layout comparison'],
+    fileName: 'ComprehensiveLayoutsExample.tsx',
+    code: `import React, { useEffect, useState } from 'react';
+import { SigmaContainer, useLoadGraph, useSetSettings } from '@react-sigma/core';
+import Graph from 'graphology';
+import { LayoutForceAtlas2Control } from '@react-sigma/layout-forceatlas2';
+import { LayoutForceControl } from '@react-sigma/layout-force';
+import { LayoutNoverlapControl } from '@react-sigma/layout-noverlap';
+import { useLayoutCircular } from '@react-sigma/layout-circular';
+import { useLayoutCirclepack } from '@react-sigma/layout-circlepack';
+import { useLayoutRandom } from '@react-sigma/layout-random';
+
+// Layout type definitions
+type RegularLayout = 'random' | 'circular' | 'circlepack';
+type WorkerLayout = 'force' | 'forceatlas2' | 'noverlap';
+
+interface LayoutControlsProps {
+  onLayoutChange: (layout: RegularLayout | WorkerLayout) => void;
+  currentLayout: RegularLayout | WorkerLayout;
+}
+
+const LayoutControls: React.FC<LayoutControlsProps> = ({ onLayoutChange, currentLayout }) => {
+  const [activeWorkerLayout, setActiveWorkerLayout] = useState<WorkerLayout | null>(null);
+
+  const handleLayoutChange = (layout: RegularLayout | WorkerLayout) => {
+    // Stop any running worker layout
+    if (activeWorkerLayout && activeWorkerLayout !== layout) {
+      setActiveWorkerLayout(null);
+    }
+    
+    // If it's a worker layout, track it
+    if (['force', 'forceatlas2', 'noverlap'].includes(layout)) {
+      setActiveWorkerLayout(layout as WorkerLayout);
+    }
+    
+    onLayoutChange(layout);
+  };
+
+  const regularLayouts: { key: RegularLayout; label: string; description: string }[] = [
+    { key: 'random', label: 'Random', description: 'Random node positioning' },
+    { key: 'circular', label: 'Circular', description: 'Nodes arranged in a circle' },
+    { key: 'circlepack', label: 'Circle Pack', description: 'Hierarchical circle packing' }
+  ];
+
+  const workerLayouts: { key: WorkerLayout; label: string; description: string }[] = [
+    { key: 'force', label: 'Force', description: 'Force-directed layout (worker)' },
+    { key: 'forceatlas2', label: 'ForceAtlas2', description: 'Advanced force-directed (worker)' },
+    { key: 'noverlap', label: 'No Overlap', description: 'Prevents node overlap (worker)' }
+  ];
+
+  return (
+    <div style={{ 
+      position: 'absolute', 
+      top: 10, 
+      right: 10, 
+      background: 'white', 
+      padding: '20px', 
+      borderRadius: '8px', 
+      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+      zIndex: 1000,
+      maxWidth: '300px',
+      fontFamily: 'system-ui, -apple-system, sans-serif'
+    }}>
+      <h3 style={{ margin: '0 0 15px 0', color: '#333', fontSize: '18px' }}>
+        Layout Algorithms
+      </h3>
+      
+      <div style={{ marginBottom: '20px' }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#555', fontSize: '14px' }}>
+          Regular Layouts (One-time)
+        </h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {regularLayouts.map(({ key, label, description }) => (
+            <button
+              key={key}
+              onClick={() => handleLayoutChange(key)}
+              style={{
+                padding: '10px 12px',
+                backgroundColor: currentLayout === key ? '#007bff' : '#f8f9fa',
+                color: currentLayout === key ? 'white' : '#333',
+                border: '1px solid #dee2e6',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: '13px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (currentLayout !== key) {
+                  e.currentTarget.style.backgroundColor = '#e9ecef';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentLayout !== key) {
+                  e.currentTarget.style.backgroundColor = '#f8f9fa';
+                }
+              }}
+            >
+              <div style={{ fontWeight: 'bold' }}>{label}</div>
+              <div style={{ fontSize: '11px', opacity: 0.8 }}>{description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h4 style={{ margin: '0 0 10px 0', color: '#555', fontSize: '14px' }}>
+          Worker Layouts (Continuous)
+        </h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {workerLayouts.map(({ key, label, description }) => (
+            <button
+              key={key}
+              onClick={() => handleLayoutChange(key)}
+              style={{
+                padding: '10px 12px',
+                backgroundColor: currentLayout === key ? '#28a745' : '#f8f9fa',
+                color: currentLayout === key ? 'white' : '#333',
+                border: '1px solid #dee2e6',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: '13px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (currentLayout !== key) {
+                  e.currentTarget.style.backgroundColor = '#e9ecef';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentLayout !== key) {
+                  e.currentTarget.style.backgroundColor = '#f8f9fa';
+                }
+              }}
+            >
+              <div style={{ fontWeight: 'bold' }}>{label}</div>
+              <div style={{ fontSize: '11px', opacity: 0.8 }}>{description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ 
+        marginTop: '15px', 
+        padding: '10px', 
+        backgroundColor: '#f8f9fa', 
+        borderRadius: '6px',
+        fontSize: '12px',
+        color: '#666'
+      }}>
+        <div><strong>Current:</strong> {currentLayout}</div>
+        {activeWorkerLayout && (
+          <div style={{ color: '#28a745', marginTop: '5px' }}>
+            ⚡ {activeWorkerLayout} is running
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const LayoutGraph: React.FC<{ layout: RegularLayout | WorkerLayout }> = ({ layout }) => {
+  const loadGraph = useLoadGraph();
+  const setSettings = useSetSettings();
+  
+  // Use the layout hooks
+  const { assign: assignCircular } = useLayoutCircular();
+  const { assign: assignCirclepack } = useLayoutCirclepack();
+  const { assign: assignRandom } = useLayoutRandom();
+
+  useEffect(() => {
+    const graph = new Graph();
+    
+    // Create a more complex and interesting graph
+    const nodeCount = 25;
+    
+    // Add nodes with different properties
+    for (let i = 0; i < nodeCount; i++) {
+      const isHub = i % 5 === 0; // Every 5th node is a hub
+      graph.addNode(\`node-\${i}\`, {
+        label: \`Node \${i}\`,
+        size: isHub ? Math.random() * 12 + 15 : Math.random() * 8 + 8,
+        color: isHub ? \`hsl(\${(i * 137.5) % 360}, 80%, 50%)\` : \`hsl(\${(i * 137.5) % 360}, 60%, 60%)\`,
+        x: Math.random() * 1000 - 500,
+        y: Math.random() * 1000 - 500,
+      });
+    }
+
+    // Create a structured graph with communities
+    for (let i = 0; i < nodeCount; i++) {
+      // Connect to next node (ring structure)
+      graph.addEdge(\`node-\${i}\`, \`node-\${(i + 1) % nodeCount}\`, {
+        color: '#666',
+        size: 2,
+        type: 'line'
+      });
+      
+      // Add hub connections
+      if (i % 5 === 0) {
+        // Connect hub to nearby nodes
+        for (let j = 1; j <= 4; j++) {
+          const target = (i + j) % nodeCount;
+          graph.addEdge(\`node-\${i}\`, \`node-\${target}\`, {
+            color: '#999',
+            size: 1.5,
+            type: 'line'
+          });
+        }
+      }
+      
+      // Add some random cross-community connections
+      for (let j = 0; j < 2; j++) {
+        const target = Math.floor(Math.random() * nodeCount);
+        if (target !== i && !graph.hasEdge(\`node-\${i}\`, \`node-\${target}\`)) {
+          graph.addEdge(\`node-\${i}\`, \`node-\${target}\`, {
+            color: '#ccc',
+            size: 0.8,
+            type: 'line'
+          });
+        }
+      }
+    }
+
+    // Load the graph first
+    loadGraph(graph);
+
+    setSettings({
+      allowInvalidContainer: true,
+      renderLabels: true,
+      defaultNodeColor: '#ec5148',
+      defaultEdgeColor: '#ccc',
+      labelSize: 12,
+      labelWeight: 'bold',
+      edgeReducer: (edge, attrs) => ({
+        ...attrs,
+        type: attrs.type || 'line'
+      }),
+      nodeReducer: (node, attrs) => ({
+        ...attrs,
+        label: attrs.label || \`Node \${node}\`,
+      }),
+    });
+  }, [loadGraph, setSettings]);
+
+  // Apply layout after graph is loaded
+  useEffect(() => {
+    // Small delay to ensure graph is fully loaded
+    const timer = setTimeout(() => {
+      switch (layout) {
+        case 'circular':
+          assignCircular();
+          break;
+        case 'random':
+          assignRandom();
+          break;
+        case 'circlepack':
+          assignCirclepack();
+          break;
+        case 'force':
+        case 'forceatlas2':
+        case 'noverlap':
+          // Start with random positions for worker layouts
+          assignRandom();
+          break;
+        default:
+          assignRandom();
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [layout, assignCircular, assignCirclepack, assignRandom]);
+
+  return null;
+};
+
+const ComprehensiveLayoutsExample: React.FC = () => {
+  const [currentLayout, setCurrentLayout] = useState<RegularLayout | WorkerLayout>('random');
+
+  return (
+    <div style={{ height: '100%', width: '100%', minHeight: '600px', position: 'relative' }}>
+      <SigmaContainer style={{ height: '100%', width: '100%' }} settings={{ allowInvalidContainer: true }}>
+        <LayoutGraph layout={currentLayout} />
+        
+        {/* Render appropriate control based on current layout */}
+        {currentLayout === 'forceatlas2' && <LayoutForceAtlas2Control />}
+        {currentLayout === 'force' && <LayoutForceControl />}
+        {currentLayout === 'noverlap' && <LayoutNoverlapControl />}
+      </SigmaContainer>
+      
+      <LayoutControls 
+        onLayoutChange={setCurrentLayout} 
+        currentLayout={currentLayout} 
+      />
+      
+      {/* Information panel */}
+      <div style={{
+        position: 'absolute',
+        bottom: 10,
+        left: 10,
+        background: 'rgba(255, 255, 255, 0.95)',
+        padding: '15px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+        maxWidth: '400px',
+        fontSize: '13px',
+        lineHeight: '1.4'
+      }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>
+          Layout Types Explained
+        </h4>
+        <div style={{ color: '#666' }}>
+          <p><strong>Regular Layouts:</strong> Applied once to position nodes</p>
+          <p><strong>Worker Layouts:</strong> Run continuously with start/stop controls</p>
+          <p>Click any layout button to see it in action. Worker layouts show control buttons on the graph.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ComprehensiveLayoutsExample;`
+  },
+  {
+    id: 'community-detection',
+    title: 'Community Detection (Louvain)',
+    description: 'Discover communities in networks using the Louvain algorithm for modularity optimization.',
+    component: CommunityDetectionExample,
+    difficulty: 'Advanced',
+    features: ['Louvain algorithm', 'Modularity optimization', 'Resolution parameter', 'Performance metrics', 'Community visualization', 'Dynamic labeling', 'Color coding'],
+    fileName: 'CommunityDetectionExample.tsx',
+    code: `import React, { useEffect, useState } from 'react';
+import { SigmaContainer, useLoadGraph, useSetSettings, useRegisterEvents } from '@react-sigma/core';
+import Graph from 'graphology';
+import { random } from 'graphology-layout';
+import louvain from 'graphology-communities-louvain';
+
+interface CommunityMetrics {
+  count: number;
+  modularity: number;
+  deltaComputations: number;
+  nodesVisited: number;
+  moves: number[];
+}
+
+const CommunityGraph: React.FC<{
+  onMetricsUpdate: (metrics: CommunityMetrics | null) => void;
+  resolution: number;
+  shouldDetect: boolean;
+  shouldReset: boolean;
+  onDetectionComplete: () => void;
+  onResetComplete: () => void;
+}> = ({
+  onMetricsUpdate,
+  resolution,
+  shouldDetect,
+  shouldReset,
+  onDetectionComplete,
+  onResetComplete
+}) => {
+  const loadGraph = useLoadGraph();
+  const setSettings = useSetSettings();
+
+  // Generate a network with clear community structure
+  useEffect(() => {
+    const graph = new Graph();
+    
+    // Create communities with dense internal connections
+    const communities = [
+      { id: 'A', size: 8, center: { x: -3, y: -2 } },
+      { id: 'B', size: 10, center: { x: 3, y: -2 } },
+      { id: 'C', size: 7, center: { x: -3, y: 2 } },
+      { id: 'D', size: 9, center: { x: 3, y: 2 } },
+      { id: 'E', size: 6, center: { x: 0, y: 0 } }
+    ];
+
+    const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6'];
+
+    // Add nodes for each community
+    communities.forEach((community, commIndex) => {
+      for (let i = 0; i < community.size; i++) {
+        const nodeId = \`\${community.id}\${i + 1}\`;
+        const angle = (i / community.size) * 2 * Math.PI;
+        const radius = 0.8 + Math.random() * 0.4;
+        
+        graph.addNode(nodeId, {
+          label: nodeId,
+          size: 8 + Math.random() * 6,
+          color: colors[commIndex],
+          originalColor: colors[commIndex],
+          x: community.center.x + Math.cos(angle) * radius,
+          y: community.center.y + Math.sin(angle) * radius,
+          community: community.id
+        });
+      }
+    });
+
+    // Add dense intra-community connections
+    communities.forEach(community => {
+      const nodes = Array.from({ length: community.size }, (_, i) => \`\${community.id}\${i + 1}\`);
+      
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          if (Math.random() > 0.3) {
+            graph.addEdge(nodes[i], nodes[j], {
+              color: '#666',
+              size: 1.5
+            });
+          }
+        }
+      }
+    });
+
+    // Add sparse inter-community connections
+    // ... (additional edge creation logic)
+
+    loadGraph(graph);
+    setSettings({
+      allowInvalidContainer: true,
+      renderLabels: true,
+      labelSize: 10
+    });
+  }, [loadGraph, setSettings]);
+
+  // Handle community detection
+  useEffect(() => {
+    if (shouldDetect) {
+      const graph = loadGraph.graph;
+      if (graph) {
+        // Run Louvain algorithm with detailed output
+        const detailed = louvain.detailed(graph, {
+          resolution,
+          nodeCommunityAttribute: 'detectedCommunity'
+        });
+
+        // Color nodes by detected communities and update labels
+        const communityColors = [
+          '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6',
+          '#e67e22', '#1abc9c', '#34495e', '#f1c40f', '#8e44ad'
+        ];
+
+        // Create community labels for better identification
+        const communityLabels = [
+          'Community A', 'Community B', 'Community C', 'Community D', 'Community E',
+          'Community F', 'Community G', 'Community H', 'Community I', 'Community J'
+        ];
+
+        graph.forEachNode((node) => {
+          const community = graph.getNodeAttribute(node, 'detectedCommunity');
+          const colorIndex = community % communityColors.length;
+          
+          // Update node color
+          graph.setNodeAttribute(node, 'color', communityColors[colorIndex]);
+          
+          // Update node label to show community membership
+          const originalLabel = graph.getNodeAttribute(node, 'label');
+          const communityLabel = communityLabels[colorIndex];
+          graph.setNodeAttribute(node, 'label', \`\${originalLabel} (\${communityLabel})\`);
+          
+          // Add community info as a separate attribute for reference
+          graph.setNodeAttribute(node, 'communityLabel', communityLabel);
+        });
+
+        // Update metrics
+        onMetricsUpdate({
+          count: detailed.count,
+          modularity: detailed.modularity,
+          deltaComputations: detailed.deltaComputations,
+          nodesVisited: detailed.nodesVisited,
+          moves: Array.isArray(detailed.moves[0]) 
+            ? detailed.moves.map(level => level.reduce((a, b) => a + b, 0))
+            : detailed.moves
+        });
+      }
+      onDetectionComplete();
+    }
+  }, [shouldDetect, resolution, loadGraph.graph, onMetricsUpdate, onDetectionComplete]);
+
+  return null;
+};
+
+const CommunityDetectionExample: React.FC = () => {
+  const [metrics, setMetrics] = useState<CommunityMetrics | null>(null);
+  const [resolution, setResolution] = useState(1.0);
+  const [shouldDetect, setShouldDetect] = useState(false);
+
+  const handleDetectCommunities = () => {
+    setShouldDetect(true);
+  };
+
+  return (
+    <SigmaContainer>
+      <CommunityGraph
+        onMetricsUpdate={setMetrics}
+        resolution={resolution}
+        shouldDetect={shouldDetect}
+        onDetectionComplete={() => setShouldDetect(false)}
+      />
+      {/* 
+        Controls and metrics display
+        Reset functionality restores original colors and labels
+        Labels update to show community membership (e.g., "A1 (Community A)")
+      */}
+    </SigmaContainer>
+  );
+};
+
+export default CommunityDetectionExample;`
   },
   {
     id: 'controls',
