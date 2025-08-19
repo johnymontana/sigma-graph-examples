@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SigmaContainer, useLoadGraph, useSetSettings } from '@react-sigma/core';
 import Graph from 'graphology';
-import { circular, random } from 'graphology-layout';
+import { random } from 'graphology-layout';
 
 interface GraphData {
   id: string;
@@ -96,7 +96,7 @@ const ComparisonControls: React.FC<{
 const SingleGraph: React.FC<{ 
   graphData: GraphData,
   style: React.CSSProperties 
-}> = ({ graphData, style }) => {
+}> = ({ graphData }) => {
   const loadGraph = useLoadGraph();
   const setSettings = useSetSettings();
 
@@ -320,7 +320,7 @@ const createSmallWorldNetwork = (graph: Graph, color: string) => {
   const edges = graph.edges();
   edges.forEach(edgeId => {
     if (Math.random() < p) {
-      const [source, target] = graph.extremities(edgeId);
+      const [source, _] = graph.extremities(edgeId);
       graph.dropEdge(edgeId);
       
       // Find random target that's not already connected
@@ -428,7 +428,7 @@ const MultiGraphExample: React.FC = () => {
         gap: '2px',
         backgroundColor: '#ecf0f1'
       }}>
-        {selectedGraphs.map((graphId, index) => {
+        {selectedGraphs.map((graphId, _) => {
           const graphData = availableGraphs.find(g => g.id === graphId);
           if (!graphData) return null;
 

@@ -285,7 +285,7 @@ const AnalysisGraph: React.FC<{
 
     // Add all nodes
     Object.entries(networkData).forEach(([category, nodes]) => {
-      nodes.forEach((nodeId, index) => {
+      nodes.forEach((nodeId, _) => {
         graph.addNode(nodeId, {
           label: nodeId,
           size: 12,
@@ -339,7 +339,7 @@ const AnalysisGraph: React.FC<{
 
     // Update node sizes and colors based on centrality
     const maxCentrality = Math.max(...Object.values(centralities));
-    graph.forEachNode((nodeId, attributes) => {
+    graph.forEachNode((nodeId, _) => {
       const centrality = centralities[nodeId];
       const normalizedCentrality = maxCentrality > 0 ? centrality / maxCentrality : 0;
       

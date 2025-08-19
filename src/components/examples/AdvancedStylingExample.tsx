@@ -214,11 +214,7 @@ const StyledGraph: React.FC<{ theme: string }> = ({ theme }) => {
       labelRenderedSizeThreshold: 0,
       labelSize: 12,
       labelWeight: 'bold',
-      // Enhanced styling settings
-      nodeHaloColor: theme === 'dark' ? '#ffffff20' : '#00000015',
-      nodeHaloSize: 2,
-      edgeHaloColor: colors.edges,
-      edgeHaloSize: 1,
+      // Enhanced styling settings removed - not valid in Settings type
     });
 
   }, [loadGraph, setSettings, theme]);
@@ -250,8 +246,7 @@ const AdvancedStylingExample: React.FC = () => {
       <SigmaContainer 
         style={{ height: '100%', width: '100%' }} 
         settings={{ 
-          allowInvalidContainer: true,
-          backgroundColor: getBackgroundColor(currentTheme)
+          allowInvalidContainer: true
         }}
       >
         <StyledGraph theme={currentTheme} />

@@ -250,7 +250,7 @@ const DynamicDataExample: React.FC = () => {
       const nodes: DataPoint['nodes'] = [];
       
       // Add base nodes with varying values
-      baseNodes.forEach((nodeId, index) => {
+      baseNodes.forEach((nodeId, _) => {
         const shouldInclude = Math.random() > 0.1; // 90% chance to include
         if (shouldInclude) {
           nodes.push({

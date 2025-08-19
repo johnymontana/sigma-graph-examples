@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { SigmaContainer, useLoadGraph, useSetSettings, useCamera } from '@react-sigma/core';
+import { SigmaContainer, useLoadGraph, useSetSettings } from '@react-sigma/core';
 import Graph from 'graphology';
-import { circular, random } from 'graphology-layout';
+import { random } from 'graphology-layout';
 
 interface AnimationState {
   isPlaying: boolean;
@@ -163,7 +163,6 @@ const AnimatedGraph: React.FC<{
 }> = ({ animationState, onStepUpdate }) => {
   const loadGraph = useLoadGraph();
   const setSettings = useSetSettings();
-  const { goto } = useCamera();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Animation step logic
@@ -291,12 +290,14 @@ const createLayoutAnimation = (graph: Graph, progress: number) => {
   const randomPositions: { [key: string]: { x: number, y: number } } = {};
 
   // Generate circular positions
-  graph.forEachNode((nodeId, _, index) => {
+  let index = 0;
+  graph.forEachNode((nodeId, _) => {
     const angle = index * 2 * Math.PI / 12;
     circularPositions[nodeId] = {
       x: Math.cos(angle) * 2,
       y: Math.sin(angle) * 2
     };
+    index++;
   });
 
   // Generate random positions
@@ -364,7 +365,8 @@ const createMorphingAnimation = (graph: Graph, progress: number) => {
   });
 
   // Position nodes: interpolate from star to clustered layout
-  graph.forEachNode((nodeId, _, index) => {
+  let index = 0;
+  graph.forEachNode((nodeId, _) => {
     if (nodeId === 'node_0') {
       // Hub stays in center
       graph.setNodeAttribute(nodeId, 'x', 0);
@@ -392,6 +394,7 @@ const createMorphingAnimation = (graph: Graph, progress: number) => {
       graph.setNodeAttribute(nodeId, 'x', starX + (clusterX - starX) * progress);
       graph.setNodeAttribute(nodeId, 'y', starY + (clusterY - starY) * progress);
     }
+    index++;
   });
 };
 

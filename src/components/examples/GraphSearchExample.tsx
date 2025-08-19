@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SigmaContainer, useLoadGraph, useSetSettings } from '@react-sigma/core';
 import Graph from 'graphology';
-import { circular } from 'graphology-layout';
 
 const SearchControls: React.FC<{ 
   onSearch: (query: string) => void,
