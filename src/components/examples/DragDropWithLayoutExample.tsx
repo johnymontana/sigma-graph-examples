@@ -5,6 +5,263 @@ import { useWorkerLayoutForceAtlas2 } from '@react-sigma/layout-forceatlas2';
 import { useWorkerLayoutNoverlap } from '@react-sigma/layout-noverlap';
 import Graph from 'graphology';
 
+// Helper component for input fields
+const ConfigInput: React.FC<{
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  type?: 'number' | 'range';
+}> = ({ label, value, onChange, min = 0, max = 1, step = 0.001, type = 'number' }) => (
+  <div style={{ marginBottom: '8px' }}>
+    <label style={{ display: 'block', fontSize: '10px', color: '#666', marginBottom: '2px' }}>
+      {label}: {value}
+    </label>
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(parseFloat(e.target.value))}
+      min={min}
+      max={max}
+      step={step}
+      style={{
+        width: '100%',
+        padding: '4px',
+        borderRadius: '3px',
+        border: '1px solid #ddd',
+        fontSize: '10px'
+      }}
+    />
+  </div>
+);
+
+// Helper component for checkbox fields
+const ConfigCheckbox: React.FC<{
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}> = ({ label, checked, onChange }) => (
+  <div style={{ marginBottom: '8px' }}>
+    <label style={{ display: 'flex', alignItems: 'center', fontSize: '10px', color: '#666' }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ marginRight: '6px' }}
+      />
+      {label}
+    </label>
+  </div>
+);
+
+// Force Layout Configuration Panel
+const ForceConfigPanel: React.FC<{
+  config: any;
+  onChange: (config: any) => void;
+}> = ({ config, onChange }) => {
+  const updateConfig = (key: string, value: any) => {
+    onChange({ ...config, [key]: value });
+  };
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '10px' }}>
+      <ConfigInput
+        label="Attraction"
+        value={config.attraction}
+        onChange={(v) => updateConfig('attraction', v)}
+        min={0}
+        max={0.01}
+        step={0.0001}
+      />
+      <ConfigInput
+        label="Repulsion"
+        value={config.repulsion}
+        onChange={(v) => updateConfig('repulsion', v)}
+        min={0}
+        max={1}
+        step={0.01}
+      />
+      <ConfigInput
+        label="Gravity"
+        value={config.gravity}
+        onChange={(v) => updateConfig('gravity', v)}
+        min={0}
+        max={0.01}
+        step={0.0001}
+      />
+      <ConfigInput
+        label="Inertia"
+        value={config.inertia}
+        onChange={(v) => updateConfig('inertia', v)}
+        min={0}
+        max={1}
+        step={0.01}
+      />
+      <ConfigInput
+        label="Max Move"
+        value={config.maxMove}
+        onChange={(v) => updateConfig('maxMove', v)}
+        min={1}
+        max={1000}
+        step={1}
+      />
+      <ConfigInput
+        label="Scaling"
+        value={config.scalingRatio}
+        onChange={(v) => updateConfig('scalingRatio', v)}
+        min={0.1}
+        max={10}
+        step={0.1}
+      />
+      <div style={{ gridColumn: '1 / -1' }}>
+        <ConfigCheckbox
+          label="Scale by node size"
+          checked={config.nodeScaling}
+          onChange={(v) => updateConfig('nodeScaling', v)}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ForceAtlas2 Layout Configuration Panel
+const ForceAtlas2ConfigPanel: React.FC<{
+  config: any;
+  onChange: (config: any) => void;
+}> = ({ config, onChange }) => {
+  const updateConfig = (key: string, value: any) => {
+    onChange({ ...config, [key]: value });
+  };
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '10px' }}>
+      <ConfigInput
+        label="Gravity"
+        value={config.gravity}
+        onChange={(v) => updateConfig('gravity', v)}
+        min={0}
+        max={10}
+        step={0.1}
+      />
+      <ConfigInput
+        label="Edge Weight"
+        value={config.edgeWeightInfluence}
+        onChange={(v) => updateConfig('edgeWeightInfluence', v)}
+        min={0}
+        max={5}
+        step={0.1}
+      />
+      <ConfigInput
+        label="Scaling"
+        value={config.scalingRatio}
+        onChange={(v) => updateConfig('scalingRatio', v)}
+        min={0.1}
+        max={10}
+        step={0.1}
+      />
+      <ConfigInput
+        label="Slow Down"
+        value={config.slowDown}
+        onChange={(v) => updateConfig('slowDown', v)}
+        min={0.1}
+        max={10}
+        step={0.1}
+      />
+      <div style={{ gridColumn: '1 / -1' }}>
+        <ConfigCheckbox
+          label="Lin-Log Mode"
+          checked={config.linLogMode}
+          onChange={(v) => updateConfig('linLogMode', v)}
+        />
+        <ConfigCheckbox
+          label="Outbound Attraction Distribution"
+          checked={config.outboundAttractionDistribution}
+          onChange={(v) => updateConfig('outboundAttractionDistribution', v)}
+        />
+        <ConfigCheckbox
+          label="Adjust Sizes"
+          checked={config.adjustSizes}
+          onChange={(v) => updateConfig('adjustSizes', v)}
+        />
+        <ConfigCheckbox
+          label="Strong Gravity Mode"
+          checked={config.strongGravityMode}
+          onChange={(v) => updateConfig('strongGravityMode', v)}
+        />
+        <ConfigCheckbox
+          label="Scale by node size"
+          checked={config.nodeScaling}
+          onChange={(v) => updateConfig('nodeScaling', v)}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Noverlap Layout Configuration Panel
+const NoverlapConfigPanel: React.FC<{
+  config: any;
+  onChange: (config: any) => void;
+}> = ({ config, onChange }) => {
+  const updateConfig = (key: string, value: any) => {
+    onChange({ ...config, [key]: value });
+  };
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '10px' }}>
+      <ConfigInput
+        label="Margin"
+        value={config.margin}
+        onChange={(v) => updateConfig('margin', v)}
+        min={0}
+        max={50}
+        step={1}
+      />
+      <ConfigInput
+        label="Expansion"
+        value={config.expansion}
+        onChange={(v) => updateConfig('expansion', v)}
+        min={1}
+        max={5}
+        step={0.1}
+      />
+      <ConfigInput
+        label="Grid Size"
+        value={config.gridSize}
+        onChange={(v) => updateConfig('gridSize', v)}
+        min={5}
+        max={100}
+        step={1}
+      />
+      <ConfigInput
+        label="Speed"
+        value={config.speed}
+        onChange={(v) => updateConfig('speed', v)}
+        min={1}
+        max={20}
+        step={1}
+      />
+      <ConfigInput
+        label="Max Iterations"
+        value={config.maxIterations}
+        onChange={(v) => updateConfig('maxIterations', v)}
+        min={50}
+        max={2000}
+        step={50}
+      />
+      <div style={{ gridColumn: '1 / -1' }}>
+        <ConfigCheckbox
+          label="Scale by node size"
+          checked={config.nodeScaling}
+          onChange={(v) => updateConfig('nodeScaling', v)}
+        />
+      </div>
+    </div>
+  );
+};
+
 interface DragLayoutControlsProps {
   layout: string;
   onLayoutChange: (layout: string) => void;
@@ -15,6 +272,12 @@ interface DragLayoutControlsProps {
   draggedNode: string | null;
   dragLockMode: 'none' | 'fixed' | 'pinned';
   onDragLockModeChange: (mode: 'none' | 'fixed' | 'pinned') => void;
+  forceConfig: any;
+  onForceConfigChange: (config: any) => void;
+  forceAtlas2Config: any;
+  onForceAtlas2ConfigChange: (config: any) => void;
+  noverlapConfig: any;
+  onNoverlapConfigChange: (config: any) => void;
 }
 
 const DragLayoutControls: React.FC<DragLayoutControlsProps> = ({
@@ -26,7 +289,13 @@ const DragLayoutControls: React.FC<DragLayoutControlsProps> = ({
   onToggleDragMode,
   draggedNode,
   dragLockMode,
-  onDragLockModeChange
+  onDragLockModeChange,
+  forceConfig,
+  onForceConfigChange,
+  forceAtlas2Config,
+  onForceAtlas2ConfigChange,
+  noverlapConfig,
+  onNoverlapConfigChange
 }) => {
   return (
     <div style={{
@@ -38,12 +307,15 @@ const DragLayoutControls: React.FC<DragLayoutControlsProps> = ({
       borderRadius: '8px',
       boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
       zIndex: 1000,
-      maxWidth: '320px',
+      maxWidth: '400px',
       fontFamily: 'system-ui, -apple-system, sans-serif'
     }}>
       <h3 style={{ margin: '0 0 15px 0', color: '#333', fontSize: '18px' }}>
-        Drag & Drop + Layouts
+        Drag & Drop + Layouts (Large Network)
       </h3>
+      <p style={{ margin: '0 0 15px 0', color: '#666', fontSize: '12px' }}>
+        200 nodes, ~800+ edges - Perfect for testing layout algorithms
+      </p>
       
       <div style={{ marginBottom: '20px' }}>
         <h4 style={{ margin: '0 0 10px 0', color: '#555', fontSize: '14px' }}>
@@ -145,6 +417,27 @@ const DragLayoutControls: React.FC<DragLayoutControlsProps> = ({
         </div>
       )}
 
+      {/* Layout Configuration */}
+      {layout !== 'none' && (
+        <div style={{ marginBottom: '15px', padding: '12px', backgroundColor: '#fff3cd', borderRadius: '6px', border: '1px solid #ffeaa7' }}>
+          <h4 style={{ margin: '0 0 12px 0', color: '#555', fontSize: '12px' }}>
+            {layout.charAt(0).toUpperCase() + layout.slice(1)} Configuration
+          </h4>
+          
+          {layout === 'force' && (
+            <ForceConfigPanel config={forceConfig} onChange={onForceConfigChange} />
+          )}
+          
+          {layout === 'forceatlas2' && (
+            <ForceAtlas2ConfigPanel config={forceAtlas2Config} onChange={onForceAtlas2ConfigChange} />
+          )}
+          
+          {layout === 'noverlap' && (
+            <NoverlapConfigPanel config={noverlapConfig} onChange={onNoverlapConfigChange} />
+          )}
+        </div>
+      )}
+
       <div style={{
         padding: '12px',
         backgroundColor: '#f8f9fa',
@@ -174,13 +467,19 @@ const DragLayoutGraph: React.FC<{
   draggedNode: string | null;
   setDraggedNode: (node: string | null) => void;
   dragLockMode: 'none' | 'fixed' | 'pinned';
+  forceConfig: any;
+  forceAtlas2Config: any;
+  noverlapConfig: any;
 }> = ({
   layout,
   isLayoutRunning,
   dragMode,
   draggedNode,
   setDraggedNode,
-  dragLockMode
+  dragLockMode,
+  forceConfig,
+  forceAtlas2Config,
+  noverlapConfig
 }) => {
   const loadGraph = useLoadGraph();
   const setSettings = useSetSettings();
@@ -192,70 +491,213 @@ const DragLayoutGraph: React.FC<{
   const forceAtlas2Layout = useWorkerLayoutForceAtlas2();
   const noverlapLayout = useWorkerLayoutNoverlap();
 
+  // Apply configuration changes by modifying graph structure and restarting layout
+  const applyConfigurationChanges = () => {
+    if (!sigma || !isLayoutRunning) return;
+    
+    const graph = sigma.getGraph();
+    
+    // Apply node scaling if enabled
+    if (forceConfig.nodeScaling || forceAtlas2Config.nodeScaling || noverlapConfig.nodeScaling) {
+      graph.forEachNode((nodeId) => {
+        const node = graph.getNodeAttributes(nodeId);
+        if (node.scaleFactor) {
+          // Apply scaling to node properties that affect layout behavior
+          if (forceConfig.nodeScaling && layout === 'force') {
+            // Scale node size based on configuration
+            const scaledSize = node.baseSize * (1 + (forceConfig.scalingRatio - 1) * node.scaleFactor);
+            graph.setNodeAttribute(nodeId, 'size', scaledSize);
+          }
+          if (forceAtlas2Config.nodeScaling && layout === 'forceatlas2') {
+            // Scale node size based on configuration
+            const scaledSize = node.baseSize * (1 + (forceAtlas2Config.scalingRatio - 1) * node.scaleFactor);
+            graph.setNodeAttribute(nodeId, 'size', scaledSize);
+          }
+          if (noverlapConfig.nodeScaling && layout === 'noverlap') {
+            // Scale node size based on configuration
+            const scaledSize = node.baseSize * (1 + (noverlapConfig.margin / 10) * node.scaleFactor);
+            graph.setNodeAttribute(nodeId, 'size', scaledSize);
+          }
+        }
+      });
+    }
+
+    // Restart layout to apply new configuration
+    if (isLayoutRunning) {
+      // Stop current layout
+      forceLayout.stop();
+      forceAtlas2Layout.stop();
+      noverlapLayout.stop();
+      
+      // Small delay to ensure stop is complete, then restart
+      setTimeout(() => {
+        if (isLayoutRunning) {
+          switch (layout) {
+            case 'force':
+              forceLayout.start();
+              break;
+            case 'forceatlas2':
+              forceAtlas2Layout.start();
+              break;
+            case 'noverlap':
+              noverlapLayout.start();
+              break;
+          }
+        }
+      }, 100);
+    }
+  };
+
   useEffect(() => {
     const graph = new Graph();
     
-    // Create a larger network for better layout demonstration
-    const nodes = [
-      { id: 'central', label: 'Central Hub', color: '#e74c3c', size: 25, x: 0, y: 0 },
-      { id: 'cluster1-1', label: 'C1-1', color: '#3498db', size: 15, x: -2, y: -1 },
-      { id: 'cluster1-2', label: 'C1-2', color: '#3498db', size: 15, x: -2.5, y: -0.5 },
-      { id: 'cluster1-3', label: 'C1-3', color: '#3498db', size: 15, x: -1.5, y: -1.5 },
-      { id: 'cluster2-1', label: 'C2-1', color: '#2ecc71', size: 15, x: 2, y: -1 },
-      { id: 'cluster2-2', label: 'C2-2', color: '#2ecc71', size: 15, x: 2.5, y: -0.5 },
-      { id: 'cluster2-3', label: 'C2-3', color: '#2ecc71', size: 15, x: 1.5, y: -1.5 },
-      { id: 'cluster3-1', label: 'C3-1', color: '#f39c12', size: 15, x: 0, y: 2 },
-      { id: 'cluster3-2', label: 'C3-2', color: '#f39c12', size: 15, x: -0.5, y: 2.5 },
-      { id: 'cluster3-3', label: 'C3-3', color: '#f39c12', size: 15, x: 0.5, y: 2.5 },
-      { id: 'outlier1', label: 'Outlier 1', color: '#9b59b6', size: 12, x: -3, y: 2 },
-      { id: 'outlier2', label: 'Outlier 2', color: '#9b59b6', size: 12, x: 3, y: 2 },
-      { id: 'bridge1', label: 'Bridge 1', color: '#e67e22', size: 18, x: -1, y: 1 },
-      { id: 'bridge2', label: 'Bridge 2', color: '#e67e22', size: 18, x: 1, y: 1 }
-    ];
+    // Create a much larger, more connected network for better layout demonstration
+    const nodeCount = 200;
+    const nodes = [];
+    
+    // Generate nodes with different types and sizes
+    for (let i = 0; i < nodeCount; i++) {
+      let nodeType, color, size, label;
+      
+      if (i < 20) {
+        // Major hubs (20 nodes)
+        nodeType = 'major-hub';
+        color = '#e74c3c';
+        size = 28;
+        label = `Hub ${i + 1}`;
+      } else if (i < 60) {
+        // Secondary hubs (40 nodes)
+        nodeType = 'secondary-hub';
+        color = '#3498db';
+        size = 22;
+        label = `Sec ${i - 19}`;
+      } else if (i < 120) {
+        // Connector nodes (60 nodes)
+        nodeType = 'connector';
+        color = '#2ecc71';
+        size = 18;
+        label = `Conn ${i - 59}`;
+      } else {
+        // Leaf nodes (80 nodes)
+        nodeType = 'leaf';
+        color = '#9b59b6';
+        size = 14;
+        label = `Leaf ${i - 119}`;
+      }
+      
+      nodes.push({
+        id: `node-${i}`,
+        label,
+        color,
+        size,
+        nodeType,
+        x: (Math.random() - 0.5) * 20,
+        y: (Math.random() - 0.5) * 20
+      });
+    }
 
+    // Add all nodes to the graph
     nodes.forEach(node => {
       graph.addNode(node.id, {
         label: node.label,
         size: node.size,
         color: node.color,
-        x: node.x + (Math.random() - 0.5) * 0.5,
-        y: node.y + (Math.random() - 0.5) * 0.5,
+        x: node.x,
+        y: node.y,
         highlighted: false,
         fixed: false,
-        pinned: false
+        pinned: false,
+        // Add properties for node scaling
+        baseSize: node.size,
+        scaleFactor: Math.max(0.5, Math.min(3, node.size / 15)) // Normalize size for scaling
       });
     });
 
-    // Add edges to create clusters
-    const edges = [
-      // Central hub connections
-      ['central', 'cluster1-1'], ['central', 'cluster2-1'], ['central', 'cluster3-1'],
-      ['central', 'bridge1'], ['central', 'bridge2'],
+    // Create connections based on node types
+    let edgeCount = 0;
+    
+    // Major hubs connect to many nodes (8-15 connections each)
+    for (let i = 0; i < 20; i++) {
+      const hubNode = `node-${i}`;
+      const connections = Math.floor(Math.random() * 8) + 8;
       
-      // Cluster 1 internal connections
-      ['cluster1-1', 'cluster1-2'], ['cluster1-2', 'cluster1-3'], ['cluster1-3', 'cluster1-1'],
+             for (let j = 0; j < connections; j++) {
+         const target = Math.floor(Math.random() * nodeCount);
+         if (target !== i && !graph.hasEdge(hubNode, `node-${target}`)) {
+           graph.addEdge(hubNode, `node-${target}`, {
+             color: '#e74c3c',
+             size: 3
+           });
+           edgeCount++;
+         }
+       }
+    }
+    
+    // Secondary hubs connect to 5-10 nodes each
+    for (let i = 20; i < 60; i++) {
+      const secHubNode = `node-${i}`;
+      const connections = Math.floor(Math.random() * 6) + 5;
       
-      // Cluster 2 internal connections
-      ['cluster2-1', 'cluster2-2'], ['cluster2-2', 'cluster2-3'], ['cluster2-3', 'cluster2-1'],
+             for (let j = 0; j < connections; j++) {
+         const target = Math.floor(Math.random() * nodeCount);
+         if (target !== i && !graph.hasEdge(secHubNode, `node-${target}`)) {
+           graph.addEdge(secHubNode, `node-${target}`, {
+             color: '#3498db',
+             size: 2.5
+           });
+           edgeCount++;
+         }
+       }
+    }
+    
+    // Connector nodes bridge between different areas (3-6 connections each)
+    for (let i = 60; i < 120; i++) {
+      const connectorNode = `node-${i}`;
+      const connections = Math.floor(Math.random() * 4) + 3;
       
-      // Cluster 3 internal connections
-      ['cluster3-1', 'cluster3-2'], ['cluster3-2', 'cluster3-3'], ['cluster3-3', 'cluster3-1'],
+             for (let j = 0; j < connections; j++) {
+         const target = Math.floor(Math.random() * nodeCount);
+         if (target !== i && !graph.hasEdge(connectorNode, `node-${target}`)) {
+           graph.addEdge(connectorNode, `node-${target}`, {
+             color: '#2ecc71',
+             size: 2
+           });
+           edgeCount++;
+         }
+       }
+    }
+    
+    // Leaf nodes connect to 1-3 other nodes
+    for (let i = 120; i < nodeCount; i++) {
+      const leafNode = `node-${i}`;
+      const connections = Math.floor(Math.random() * 3) + 1;
       
-      // Bridge connections
-      ['bridge1', 'cluster1-2'], ['bridge1', 'cluster3-2'],
-      ['bridge2', 'cluster2-2'], ['bridge2', 'cluster3-3'],
-      
-      // Outlier connections
-      ['outlier1', 'bridge1'], ['outlier2', 'bridge2'],
-      ['outlier1', 'cluster1-3'], ['outlier2', 'cluster2-3']
-    ];
-
-    edges.forEach(([source, target]) => {
-      graph.addEdge(source, target, {
-        color: '#999',
-        size: 1.5
-      });
-    });
+             for (let j = 0; j < connections; j++) {
+         const target = Math.floor(Math.random() * nodeCount);
+         if (target !== i && !graph.hasEdge(leafNode, `node-${target}`)) {
+           graph.addEdge(leafNode, `node-${target}`, {
+             color: '#9b59b6',
+             size: 1.5
+           });
+           edgeCount++;
+         }
+       }
+    }
+    
+    // Add some random cross-connections to increase density and create cycles
+         for (let i = 0; i < 150; i++) {
+       const source = Math.floor(Math.random() * nodeCount);
+       const target = Math.floor(Math.random() * nodeCount);
+       if (source !== target && !graph.hasEdge(`node-${source}`, `node-${target}`)) {
+         graph.addEdge(`node-${source}`, `node-${target}`, {
+           color: '#95a5a6',
+           size: Math.random() * 1.5 + 0.5
+         });
+         edgeCount++;
+       }
+     }
+    
+    console.log(`Created graph with ${nodeCount} nodes and ${edgeCount} edges`);
     
     loadGraph(graph);
 
@@ -301,6 +743,13 @@ const DragLayoutGraph: React.FC<{
       noverlapLayout.stop();
     };
   }, [layout, isLayoutRunning, forceLayout, forceAtlas2Layout, noverlapLayout]);
+
+  // Handle configuration changes - restart layout when config changes
+  useEffect(() => {
+    if (isLayoutRunning) {
+      applyConfigurationChanges();
+    }
+  }, [forceConfig, forceAtlas2Config, noverlapConfig, isLayoutRunning, layout, applyConfigurationChanges]);
 
   // Handle drag events
   useEffect(() => {
@@ -394,6 +843,43 @@ const DragDropWithLayoutExample: React.FC = () => {
   const [draggedNode, setDraggedNode] = useState<string | null>(null);
   const [dragLockMode, setDragLockMode] = useState<'none' | 'fixed' | 'pinned'>('fixed');
 
+  // Layout configuration states
+  const [forceConfig, setForceConfig] = useState({
+    attraction: 0.0005,
+    repulsion: 0.1,
+    gravity: 0.0001,
+    inertia: 0.6,
+    maxMove: 200,
+    scalingRatio: 1,
+    nodeScaling: false, // Scale force by node size
+    nodeProperty: 'size' // Property to use for scaling
+  });
+
+  const [forceAtlas2Config, setForceAtlas2Config] = useState({
+    linLogMode: false,
+    outboundAttractionDistribution: false,
+    adjustSizes: false,
+    edgeWeightInfluence: 1,
+    scalingRatio: 1,
+    strongGravityMode: false,
+    gravity: 1,
+    slowDown: 1,
+    barnesHutOptimize: false,
+    barnesHutTheta: 0.5,
+    nodeScaling: false, // Scale gravity by node size
+    nodeProperty: 'size' // Property to use for scaling
+  });
+
+  const [noverlapConfig, setNoverlapConfig] = useState({
+    margin: 5,
+    expansion: 1.1,
+    gridSize: 20,
+    speed: 3,
+    maxIterations: 500,
+    nodeScaling: false, // Scale margin by node size
+    nodeProperty: 'size' // Property to use for scaling
+  });
+
   const handleToggleLayout = () => {
     setIsLayoutRunning(!isLayoutRunning);
   };
@@ -415,6 +901,9 @@ const DragDropWithLayoutExample: React.FC = () => {
           draggedNode={draggedNode}
           setDraggedNode={setDraggedNode}
           dragLockMode={dragLockMode}
+          forceConfig={forceConfig}
+          forceAtlas2Config={forceAtlas2Config}
+          noverlapConfig={noverlapConfig}
         />
       </SigmaContainer>
       
@@ -428,6 +917,12 @@ const DragDropWithLayoutExample: React.FC = () => {
         draggedNode={draggedNode}
         dragLockMode={dragLockMode}
         onDragLockModeChange={setDragLockMode}
+        forceConfig={forceConfig}
+        onForceConfigChange={setForceConfig}
+        forceAtlas2Config={forceAtlas2Config}
+        onForceAtlas2ConfigChange={setForceAtlas2Config}
+        noverlapConfig={noverlapConfig}
+        onNoverlapConfigChange={setNoverlapConfig}
       />
       
       {/* Information panel */}

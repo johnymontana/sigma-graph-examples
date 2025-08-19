@@ -8,6 +8,7 @@ import LayoutsExample from './examples/LayoutsExample';
 import ComprehensiveLayoutsExample from './examples/ComprehensiveLayoutsExample';
 import CommunityDetectionExample from './examples/CommunityDetectionExample';
 import DragDropWithLayoutExample from './examples/DragDropWithLayoutExample';
+import GraphControlsExample from './examples/GraphControlsExample';
 import ControlsExample from './examples/ControlsExample';
 import ExternalStateExample from './examples/ExternalStateExample';
 import GraphSearchExample from './examples/GraphSearchExample';
@@ -394,10 +395,10 @@ export default DragDropExample;`
   {
     id: 'drag-drop-layout',
     title: 'Drag & Drop + Continuous Layouts',
-    description: 'Combine manual node positioning with continuous layout algorithms running in background.',
+    description: 'Combine manual node positioning with continuous layout algorithms running in background. Features a large network (200+ nodes, 800+ edges) for testing layout performance.',
     component: DragDropWithLayoutExample,
     difficulty: 'Advanced',
-    features: ['Continuous layouts', 'Layout workers', 'Drag lock modes', 'Real-time interaction', 'Node pinning'],
+    features: ['Large network: 200+ nodes, 800+ edges', 'Continuous layouts', 'Layout workers', 'Drag lock modes', 'Real-time interaction', 'Node pinning'],
     fileName: 'DragDropWithLayoutExample.tsx',
     code: `import React, { useEffect, useState } from 'react';
 import { SigmaContainer, useLoadGraph, useSetSettings, useRegisterEvents, useSigma } from '@react-sigma/core';
@@ -557,6 +558,158 @@ const DragDropWithLayoutExample: React.FC = () => {
 };
 
 export default DragDropWithLayoutExample;`
+  },
+  {
+    id: 'graph-controls',
+    title: 'Graph Controls & Search',
+    description: 'Comprehensive graph controls with search functionality, node highlighting, and relationship visualization.',
+    component: GraphControlsExample,
+    difficulty: 'Intermediate',
+    features: ['Zoom control', 'Fullscreen control', 'Node highlighting', 'Relationship visualization', 'Hover effects'],
+    fileName: 'GraphControlsExample.tsx',
+    code: `import React, { useEffect, useState } from 'react';
+import {
+  SigmaContainer,
+  useLoadGraph,
+  useSetSettings,
+  useRegisterEvents,
+  useSigma,
+  ControlsContainer,
+  FullScreenControl,
+  ZoomControl
+} from '@react-sigma/core';
+import Graph from 'graphology';
+import { random } from 'graphology-layout';
+
+const GraphControlsGraph: React.FC = () => {
+  const loadGraph = useLoadGraph();
+  const setSettings = useSetSettings();
+  const registerEvents = useRegisterEvents();
+  const sigma = useSigma();
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const graph = new Graph();
+    
+    // Create a diverse network with different node types
+    const nodes = [
+      { id: 'hub1', label: 'Main Hub', type: 'hub', color: '#e74c3c', size: 25, x: 0, y: 0 },
+      { id: 'tech1', label: 'React', type: 'technology', color: '#3498db', size: 18, x: -2, y: -1 },
+      { id: 'data1', label: 'Python', type: 'data', color: '#2ecc71', size: 19, x: 2, y: -1 },
+      { id: 'design1', label: 'Figma', type: 'design', color: '#f39c12', size: 18, x: 0, y: 2 },
+      // ... more nodes
+    ];
+
+    nodes.forEach(node => {
+      graph.addNode(node.id, {
+        label: node.label,
+        size: node.size,
+        color: node.color,
+        nodeType: node.type, // Store type as custom attribute instead
+        x: node.x + (Math.random() - 0.5) * 0.3,
+        y: node.y + (Math.random() - 0.5) * 0.3,
+        highlighted: false,
+        hovered: false
+      });
+    });
+
+    // Add edges for relationships
+    const edges = [
+      ['hub1', 'tech1'], ['hub1', 'data1'], ['hub1', 'design1'],
+      ['tech1', 'data1'], ['data1', 'design1']
+    ];
+
+    edges.forEach(([source, target]) => {
+      graph.addEdge(source, target, {
+        color: '#999',
+        size: 1.5,
+        highlighted: false
+      });
+    });
+    
+    loadGraph(graph);
+    setSettings({
+      allowInvalidContainer: true,
+      renderLabels: true,
+      nodeReducer: (_, attrs) => ({
+        ...attrs,
+        size: attrs.highlighted ? attrs.size * 1.4 : attrs.size,
+        borderColor: attrs.hovered ? '#00ff00' : undefined,
+        borderSize: attrs.hovered ? 2 : 0,
+        color: attrs.highlighted ? '#ffff00' : attrs.color
+      }),
+      edgeReducer: (_, attrs) => ({
+        ...attrs,
+        color: attrs.highlighted ? '#ff0000' : '#999',
+        size: attrs.highlighted ? 3 : 1.5
+      })
+    });
+  }, [loadGraph, setSettings]);
+
+  // Handle hover events
+  useEffect(() => {
+    registerEvents({
+      enterNode: (e) => {
+        const node = e.node;
+        setHoveredNode(node);
+        
+        const graph = sigma.getGraph();
+        graph.setNodeAttribute(node, 'hovered', true);
+        
+        // Highlight connected edges and nodes
+        graph.forEachEdge((edge) => {
+          const source = graph.source(edge);
+          const target = graph.target(edge);
+          
+          if (source === node || target === node) {
+            graph.setEdgeAttribute(edge, 'highlighted', true);
+            const connectedNode = source === node ? target : source;
+            graph.setNodeAttribute(connectedNode, 'highlighted', true);
+          }
+        });
+      },
+      
+      leaveNode: () => {
+        if (hoveredNode) {
+          const graph = sigma.getGraph();
+          graph.setNodeAttribute(hoveredNode, 'hovered', false);
+          
+          graph.forEachEdge((edge) => {
+            graph.setEdgeAttribute(edge, 'highlighted', false);
+          });
+          
+          graph.forEachNode((node) => {
+            graph.setNodeAttribute(node, 'highlighted', false);
+          });
+        }
+        setHoveredNode(null);
+      },
+      
+      doubleClickNode: (e) => {
+        const node = e.node;
+        console.log('Double-clicked node:', node);
+        // Simple logging for now
+      }
+    });
+  }, [registerEvents, sigma, hoveredNode]);
+
+  return null;
+};
+
+const GraphControlsExample: React.FC = () => {
+  return (
+    <SigmaContainer>
+      <GraphControlsGraph />
+      
+      <ControlsContainer position="bottom-right">
+        <ZoomControl />
+        <FullScreenControl />
+      </ControlsContainer>
+    </SigmaContainer>
+  );
+};
+
+export default GraphControlsExample;`
   },
   {
     id: 'layouts',
